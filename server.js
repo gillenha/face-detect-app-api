@@ -14,60 +14,32 @@ const db = knex({
   }
 });
 
-db.select('*').from('users').then(data => {
-	// console.log(data);
-});
-
 const app = express();
 
-const database = {
-	users: [
-		{
-			id: "123",
-			name: "John",
-			password: "cookies",
-			email: "john@gmail.com",
-			entries: 0,
-			joined: new Date()
-		},
-		{
-			id: "124",
-			name: "Sally",
-			password: "bananas",
-			email: "sally@gmail.com",
-			entries: 0,
-			joined: new Date()
-		}
-	],
-	login: [
-		{
-			id: '987',
-			has: '',
-			email: 'john@gmail.com'
-		}
-	]
-}
-
-app.use(bodyParser.json());
 app.use(cors());
+app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
 	res.send(database.users);
 })
 
 app.post('/signin', (req, res) => {
-	// bcrypt.compare("apples", "$2a$10$WE0WmBvWmzkN7aQeqkfPB.nV6GkDvSa9lwuxjJgS9Rq9/tnixtZqe", function(err, res) {
-	//     console.log('first guess', res)
-	// });
-	// bcrypt.compare("veggies", "$2a$10$WE0WmBvWmzkN7aQeqkfPB.nV6GkDvSa9lwuxjJgS9Rq9/tnixtZqe", function(err, res) {
-	//     console.log('second guess', res)
-	// });
-	if (req.body.email === database.users[0].email && 
-			req.body.password === database.users[0].password) {
-		res.json(database.users[0]);
-	} else {
-		res.status(400).json('error loggin in, sorry')
-	}
+	db.select('email', 'hash').from('login')
+	.where('email', '=', req.body.email)
+	.then(data => {
+		const isValid = bcrypt.compareSync(req.body.password, data[0].hash);
+		if (isValid) {
+			return db.select('*').from('users')
+				.where('email', '=', req.body.email)
+				.then(user => {
+						res.json(user[0])
+				})
+				.catch(err => res.status(400).json('unable to get user'))
+			} else {
+				res.status(400).json('wrong credentials 1')
+			}
+		})
+	.catch(err => res.status(400).json('wrong credentials 2'))
 })
 
 // Hashing passwords on '/register'
@@ -118,25 +90,14 @@ app.get('/profile/:id', (req, res) => {
 	const { id } = req.params;
 	db.select('*').from('users').where({id})
 		.then(user => {
-			if(user.length) {
+			if (user.length) {
 				res.json(user[0])
 			} else {
 				res.status(400).json('Not found!')
 			}
 	})
 		.catch(err => res.status(400).json('error getting user'))
-	// if (!found) {
-	// 	res.status(400).json('not found');
-	// }
 })
-
-
-
-
-
-
-
-
 
 app.put('/image', (req, res) => {
 	const { id } = req.body;
